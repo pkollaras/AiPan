@@ -7,6 +7,7 @@
 | Profile | Τι σηκώνει | Για ποιον |
 |---|---|---|
 | `vllm` | **OpenAI-compatible API** ([vLLM](https://docs.vllm.ai/)) με API key | Εφαρμογές, n8n, scripts, agents, ό,τι μιλάει σε OpenAI API |
+| `coding` | **Μοντέλο για κώδικα** (Qwen3-Coder-Next) με tool calling, που δουλεύει **με το Claude Code** και άλλους coding agents | Development με agents σε δικό σου μοντέλο |
 | `webui` | **[Open WebUI](https://openwebui.com/) + Ollama**: ChatGPT-like περιβάλλον στον browser | Ομάδα/πελάτες που θέλουν απλώς να κάνουν chat |
 
 ---
@@ -66,7 +67,37 @@ print(r.choices[0].message.content)
 
 Το ίδιο URL/key μπαίνει και σε n8n, Flowise, LangChain, LibreChat κ.λπ. (επιλογή "OpenAI compatible").
 
-## 5. Σταμάτημα / κόστος
+## 5. Claude Code πάνω στο δικό σου μοντέλο (profile `coding`)
+
+Το vLLM μιλάει και το **Anthropic Messages API** (`/v1/messages`), οπότε το Claude Code συνδέεται απευθείας, χωρίς proxy.
+
+```bash
+npm install -g @anthropic-ai/claude-code   # αν δεν το έχεις
+scripts/launch.sh coding                   # νοικιάζει GPU 96GB+ και σηκώνει Qwen3-Coder-Next
+scripts/test.sh                            # περιμένει να φορτώσει (~80GB download την 1η φορά)
+cd ~/το-project-σου
+/path/to/AiPan/scripts/claude-code.sh      # Claude Code, αλλά με το δικό σου μοντέλο
+```
+
+Το `claude-code.sh` ορίζει `ANTHROPIC_BASE_URL`, το token και τα aliases `opus`/`sonnet`/`haiku`/subagents, όλα στο ίδιο μοντέλο. Κλείνει επίσης το telemetry προς Anthropic. Ό,τι ορίσματα του δώσεις περνάνε στο `claude` (π.χ. `scripts/claude-code.sh -p "τρέξε τα tests"`).
+
+**Μοντέλο & GPU:**
+
+| Ρύθμιση | Μοντέλο | GPU | Σχόλιο |
+|---|---|---|---|
+| default | `Qwen/Qwen3-Coder-Next-FP8` (80B MoE, 3B active, 256K ctx) | 1× 96GB+ (RTX PRO 6000, H200) | Γρήγορο (~100+ tok/s), καλό για agentic coding |
+| φθηνή | `Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8` | 1× 48GB (A6000, L40S) | Αρκετά πιο αδύναμο, για απλές εργασίες |
+| μεγάλη | GLM-5.x, Kimi K2.x, MiniMax M3, DeepSeek V4 | 8× H100/H200 | Πιο κοντά σε frontier, με πολύ ακριβότερη ώρα |
+
+Για να αλλάξεις μοντέλο, άλλαξε `CODING_MODEL`, `CODING_GPU_QUERY` και `TOOL_CALL_PARSER` στο `config.env`. Κάθε οικογένεια μοντέλων έχει δικό της parser (δες τα [vLLM recipes](https://docs.vllm.ai/projects/recipes/)). Χωρίς σωστό parser το Claude Code δεν μπορεί να καλέσει εργαλεία (αρχεία, bash).
+
+**Να έχεις ρεαλιστικές προσδοκίες:** τα open μοντέλα έχουν κλείσει πολύ την απόσταση, αλλά σε μεγάλες, πολύπλοκες αλλαγές το Claude (Opus/Sonnet) παραμένει ισχυρότερο. Καλή πρακτική είναι να κρατήσεις και τα δύο: το self-hosted για ευαίσθητο κώδικα πελατών και για μεγάλο όγκο ρουτίνας, το Claude για τα δύσκολα.
+
+**Άλλοι agents** (OpenAI-compatible, `base_url = <URL>/v1`, model `coder`): [OpenCode](https://opencode.ai/), [Aider](https://aider.chat/), Cline/Roo (VS Code), Continue, Qwen Code.
+
+> ⚠️ Ο κώδικάς σου ταξιδεύει μέσω **HTTP χωρίς κρυπτογράφηση**. Για κώδικα πελατών βάλε TLS μπροστά (δες «Ασφάλεια») πριν το χρησιμοποιήσεις σοβαρά.
+
+## 6. Σταμάτημα / κόστος
 
 ```bash
 scripts/stop.sh      # σταματά η χρέωση GPU, κρατιούνται τα αρχεία (μικρή χρέωση δίσκου)
@@ -115,7 +146,8 @@ scripts/destroy.sh   # οριστική διαγραφή, μηδενική χρ�
 ```
 config.env.example   ρυθμίσεις (αντέγραψε σε config.env)
 scripts/search.sh    διαθέσιμες GPU & τιμές
-scripts/launch.sh    νοικιάζει GPU & σηκώνει vllm ή webui
+scripts/launch.sh    νοικιάζει GPU & σηκώνει vllm, coding ή webui
+scripts/claude-code.sh  τρέχει το Claude Code πάνω στο δικό σου μοντέλο
 scripts/endpoint.sh  URL του server
 scripts/test.sh      δοκιμαστικό μήνυμα στο API
 scripts/logs.sh      logs

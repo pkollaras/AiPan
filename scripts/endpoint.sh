@@ -28,10 +28,12 @@ while :; do
     echo "$URL" > "$STATE_DIR/url"
     echo
     echo "Server URL: $URL"
-    if [[ "$PROFILE" == vllm ]]; then
+    if [[ "$PROFILE" == vllm || "$PROFILE" == coding ]]; then
       echo "OpenAI base_url: $URL/v1"
       echo "API key:         $(cat "$STATE_DIR/api_key" 2>/dev/null)"
+      echo "Model:           $(cat "$STATE_DIR/model" 2>/dev/null)"
       echo "(Το μοντέλο κατεβαίνει στην πρώτη εκκίνηση — έλεγξε με: scripts/test.sh ή scripts/logs.sh)"
+      [[ "$PROFILE" == coding ]] && echo "Claude Code:     scripts/claude-code.sh"
     else
       echo "Άνοιξε το URL στον browser και κάνε ΑΜΕΣΩΣ εγγραφή (ο πρώτος χρήστης γίνεται admin)."
     fi
