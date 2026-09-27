@@ -6,18 +6,20 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 STATE_DIR="$ROOT/.state"
 mkdir -p "$STATE_DIR"
 
-if [[ ! -f "$ROOT/config.env" ]]; then
-  echo "Λείπει το config.env. Τρέξε: cp config.env.example config.env" >&2
-  exit 1
-fi
+# Defaults από το config.env.example, και από πάνω το config.env (αν υπάρχει).
+# Ένα VAST_API_KEY από το περιβάλλον (π.χ. secret του CI/cloud) έχει προτεραιότητα.
+ENV_VAST_API_KEY="${VAST_API_KEY:-}"
 # shellcheck disable=SC1091
-set -a; source "$ROOT/config.env"; set +a
+set -a; source "$ROOT/config.env.example"
+[[ -f "$ROOT/config.env" ]] && source "$ROOT/config.env"
+set +a
+VAST_API_KEY="${ENV_VAST_API_KEY:-$VAST_API_KEY}"
 
 command -v vastai >/dev/null || { echo "Λείπει το vastai CLI. Τρέξε: pip install vastai" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "Χρειάζεται python3." >&2; exit 1; }
 
 if [[ -z "${VAST_API_KEY:-}" ]]; then
-  echo "Συμπλήρωσε το VAST_API_KEY στο config.env." >&2
+  echo "Συμπλήρωσε το VAST_API_KEY στο config.env ή όρισέ το ως μεταβλητή περιβάλλοντος." >&2
   exit 1
 fi
 VAST=(vastai --api-key "$VAST_API_KEY")
